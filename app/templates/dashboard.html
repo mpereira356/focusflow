@@ -78,6 +78,7 @@
   <div class="task-card {% if session.status == 'completed' %}completed{% elif session.status == 'running' %}running{% endif %}"
        id="card-{{ task.id }}"
        data-task-id="{{ task.id }}"
+       data-task-name="{{ task.name|e }}"
        data-duration="{{ dur_sec }}"
        data-elapsed="{{ session.time_completed }}"
        data-status="{{ session.status }}">

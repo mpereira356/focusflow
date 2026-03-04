@@ -5,6 +5,30 @@
 
 var timers = {};  // taskId -> { interval, elapsed, duration, status }
 
+function canUseBrowserNotification() {
+  return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+function requestNotificationPermissionIfNeeded() {
+  if (!canUseBrowserNotification()) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().catch(function() {});
+  }
+}
+
+function notifyTimerCompleted(taskName) {
+  if (!canUseBrowserNotification()) return;
+  if (Notification.permission !== 'granted') return;
+
+  var title = 'Tempo finalizado';
+  var body = taskName ? ('A tarefa "' + taskName + '" foi concluida.') : 'Sua sessao foi concluida.';
+  try {
+    new Notification(title, { body: body });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 function getTasksApiBase() {
   var taskLink = document.querySelector('a[href*="/tasks/"]');
   if (!taskLink) return '/tasks';
@@ -43,12 +67,15 @@ function findActionButton(target) {
  * Initialize timers from server-rendered data attributes
  */
 document.addEventListener('DOMContentLoaded', function() {
+  requestNotificationPermissionIfNeeded();
+
   var cards = document.querySelectorAll('.task-card[data-task-id]');
   cards.forEach(function(card) {
     var taskId   = parseInt(card.dataset.taskId, 10);
     var duration = parseInt(card.dataset.duration, 10);
     var elapsed  = parseInt(card.dataset.elapsed, 10);
     var status   = card.dataset.status || 'pending';
+    var taskName = card.dataset.taskName || '';
 
     if (!taskId || isNaN(duration) || isNaN(elapsed)) {
       return;
@@ -57,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
     timers[taskId] = {
       elapsed:  elapsed,
       duration: duration,
+      taskName: taskName,
       status:   status,
       interval: null
     };
@@ -89,6 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function timerStart(taskId) {
   var t = timers[taskId];
   if (!t) return;
+  requestNotificationPermissionIfNeeded();
 
   requestJson(apiUrl('/api/timer/start/' + taskId), { method: 'POST', credentials: 'same-origin' })
     .then(function(data) {
@@ -162,6 +191,7 @@ function startLocalTimer(taskId) {
       syncToServer(taskId, t.elapsed, null);
       updateUI(taskId);
       showToast('Tarefa concluida! Excelente foco!');
+      notifyTimerCompleted(t.taskName);
       return;
     }
     updateUI(taskId);
