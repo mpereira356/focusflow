@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — FocusFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('tasks.create_task') }}" class="btn-primary btn-sm">
+  <span class="material-icons-round">add</span> Nova Tarefa
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Daily summary bar -->
+<div class="summary-bar" data-aos="fade-down">
+  <div class="summary-item">
+    <span class="summary-label">Progresso do dia</span>
+    <div class="summary-progress-wrap">
+      <div class="summary-progress-bar">
+        <div class="summary-progress-fill" style="width: {{ daily_progress }}%"></div>
+      </div>
+      <span class="summary-pct">{{ daily_progress }}%</span>
+    </div>
+  </div>
+  <div class="summary-stats">
+    <div class="stat-pill">
+      <span class="material-icons-round">check_circle</span>
+      <span>{{ completed_count }}/{{ total_tasks }} concluidas</span>
+    </div>
+    <div class="stat-pill">
+      <span class="material-icons-round">schedule</span>
+      <span>{{ total_seconds_done // 60 }}min / {{ total_minutes_goal }}min</span>
+    </div>
+    <div class="stat-pill date-pill">
+      <span class="material-icons-round">today</span>
+      <span>{{ today.strftime('%d %b %Y') }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Week overview mini chart -->
+<div class="week-chart-section">
+  <h3 class="section-title">Ultimos 7 dias</h3>
+  <div class="week-bars">
+    {% for d in history_data %}
+    <div class="week-bar-item {% if loop.last %}today{% endif %}">
+      <div class="week-bar-wrap">
+        <div class="week-bar" style="height: {{ [d.total_minutes * 2, 80] | min }}px; opacity: {% if d.total_minutes > 0 %}1{% else %}0.2{% endif %}"></div>
+      </div>
+      <span class="week-bar-label">{{ d.label }}</span>
+      {% if d.total_minutes > 0 %}<span class="week-bar-val">{{ d.total_minutes }}m</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Task cards -->
+<div class="section-header">
+  <h2 class="section-title">Tarefas de hoje</h2>
+  {% if task_data %}
+  <a href="{{ url_for('tasks.list_tasks') }}" class="link-subtle">Ver todas <span class="material-icons-round">arrow_forward</span></a>
+  {% endif %}
+</div>
+
+{% if not task_data %}
+<div class="empty-state">
+  <div class="empty-icon"><span class="material-icons-round">inbox</span></div>
+  <h3>Nenhuma tarefa ainda</h3>
+  <p>Crie sua primeira tarefa e comece a focar!</p>
+  <a href="{{ url_for('tasks.create_task') }}" class="btn-primary">
+    <span class="material-icons-round">add</span> Criar tarefa
+  </a>
+</div>
+{% else %}
+<div class="task-grid" id="taskGrid">
+  {% for td in task_data %}
+  {% set task = td.task %}
+  {% set session = td.session %}
+  {% set dur_sec = task.duration_minutes * 60 %}
+  <div class="task-card {% if session.status == 'completed' %}completed{% elif session.status == 'running' %}running{% endif %}"
+       id="card-{{ task.id }}"
+       data-task-id="{{ task.id }}"
+       data-duration="{{ dur_sec }}"
+       data-elapsed="{{ session.time_completed }}"
+       data-status="{{ session.status }}">
+
+    <div class="task-card-header">
+      <div class="task-icon-wrap" style="background: {{ task.color }}22; color: {{ task.color }}">
+        <span class="material-icons-round">{{ task.icon }}</span>
+      </div>
+      <div class="task-meta">
+        <h4 class="task-name">{{ task.name }}</h4>
+        {% if task.description %}
+        <p class="task-desc">{{ task.description[:60] }}{% if task.description|length > 60 %}...{% endif %}</p>
+        {% endif %}
+      </div>
+      <div class="task-badges">
+        {% if task.is_recurring %}
+        <span class="badge badge-recurring" title="Recorrente diaria">
+          <span class="material-icons-round">loop</span>
+        </span>
+        {% endif %}
+        {% if session.status == 'completed' %}
+        <span class="badge badge-done">
+          <span class="material-icons-round">check</span> Concluida
+        </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Timer display -->
+    <div class="timer-display">
+      <div class="timer-ring-wrap">
+        <svg class="timer-ring" viewBox="0 0 100 100">
+          <circle class="ring-bg" cx="50" cy="50" r="42"/>
+          <circle class="ring-progress" cx="50" cy="50" r="42"
+                  id="ring-{{ task.id }}"
+                  style="stroke: {{ task.color }}; stroke-dashoffset: {{ 264 - (264 * td.progress / 100) }}"/>
+        </svg>
+        <div class="timer-time" id="time-{{ task.id }}">
+          {{ '%02d:%02d' % ((dur_sec - session.time_completed) // 60, (dur_sec - session.time_completed) % 60) }}
+        </div>
+      </div>
+      <div class="timer-info">
+        <span class="timer-total">{{ task.duration_minutes }} min / dia</span>
+        <div class="linear-progress">
+          <div class="linear-fill" id="fill-{{ task.id }}" style="width: {{ td.progress }}%; background: {{ task.color }}"></div>
+        </div>
+        <span class="timer-pct" id="pct-{{ task.id }}">{{ td.progress }}%</span>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="timer-controls">
+      {% if session.status != 'completed' %}
+      <button class="ctrl-btn ctrl-play {% if session.status == 'running' %}hidden{% endif %}"
+              id="btn-play-{{ task.id }}"
+              data-action="start" data-task-id="{{ task.id }}"
+              onclick="timerStart({{ task.id }})" title="Iniciar">
+        <span class="material-icons-round">play_arrow</span>
+      </button>
+      <button class="ctrl-btn ctrl-pause {% if session.status != 'running' %}hidden{% endif %}"
+              id="btn-pause-{{ task.id }}"
+              data-action="pause" data-task-id="{{ task.id }}"
+              onclick="timerPause({{ task.id }})" title="Pausar">
+        <span class="material-icons-round">pause</span>
+      </button>
+      <button class="ctrl-btn ctrl-reset"
+              id="btn-reset-{{ task.id }}"
+              data-action="reset" data-task-id="{{ task.id }}"
+              onclick="timerReset({{ task.id }})" title="Resetar">
+        <span class="material-icons-round">restart_alt</span>
+      </button>
+      {% else %}
+      <div class="completed-msg">
+        <span class="material-icons-round">emoji_events</span>
+        Sessao concluida!
+      </div>
+      <button class="ctrl-btn ctrl-reset"
+              id="btn-reset-{{ task.id }}"
+              data-action="reset" data-task-id="{{ task.id }}"
+              onclick="timerReset({{ task.id }})" title="Resetar">
+        <span class="material-icons-round">restart_alt</span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Toast notification -->
+<div class="toast" id="toast">
+  <span class="material-icons-round">emoji_events</span>
+  <span id="toastMsg">Tarefa concluida!</span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/timer.js') }}"></script>
+{% endblock %}

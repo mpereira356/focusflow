@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Minhas Tarefas — FocusFlow{% endblock %}
+{% block page_title %}Minhas Tarefas{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('tasks.create_task') }}" class="btn-primary btn-sm">
+  <span class="material-icons-round">add</span> Nova Tarefa
+</a>
+{% endblock %}
+
+{% block content %}
+{% if not task_data %}
+<div class="empty-state">
+  <div class="empty-icon"><span class="material-icons-round">checklist</span></div>
+  <h3>Sem tarefas criadas</h3>
+  <p>Adicione tarefas e defina quanto tempo quer dedicar a cada uma.</p>
+  <a href="{{ url_for('tasks.create_task') }}" class="btn-primary">
+    <span class="material-icons-round">add</span> Criar primeira tarefa
+  </a>
+</div>
+{% else %}
+<div class="task-list-grid">
+  {% for td in task_data %}
+  {% set task = td.task %}
+  {% set session = td.session %}
+  <div class="task-list-card {% if session.status == 'completed' %}completed{% endif %}">
+    <div class="tlc-color-bar" style="background: {{ task.color }}"></div>
+    <div class="tlc-icon" style="color: {{ task.color }}">
+      <span class="material-icons-round">{{ task.icon }}</span>
+    </div>
+    <div class="tlc-body">
+      <div class="tlc-top">
+        <h4>{{ task.name }}</h4>
+        <div class="tlc-badges">
+          {% if task.is_recurring %}
+          <span class="badge badge-recurring"><span class="material-icons-round">loop</span> Diaria</span>
+          {% endif %}
+          {% if session.status == 'completed' %}
+          <span class="badge badge-done"><span class="material-icons-round">check</span> Concluida</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if task.description %}
+      <p class="tlc-desc">{{ task.description }}</p>
+      {% endif %}
+      <div class="tlc-stats">
+        <span><span class="material-icons-round">schedule</span> {{ task.duration_minutes }} min/dia</span>
+        <span><span class="material-icons-round">today</span> {{ task.created_at.strftime('%d/%m/%Y') }}</span>
+      </div>
+      <div class="tlc-progress">
+        <div class="linear-progress">
+          <div class="linear-fill" style="width: {{ td.progress }}%; background: {{ task.color }}"></div>
+        </div>
+        <span class="tlc-pct">{{ td.progress }}% hoje</span>
+      </div>
+    </div>
+    <div class="tlc-actions">
+      <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="icon-btn" title="Editar">
+        <span class="material-icons-round">edit</span>
+      </a>
+      <form method="POST" action="{{ url_for('tasks.delete_task', task_id=task.id) }}"
+            onsubmit="return confirm('Excluir esta tarefa?')">
+        <button type="submit" class="icon-btn danger" title="Excluir">
+          <span class="material-icons-round">delete</span>
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

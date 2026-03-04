@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Historico — FocusFlow{% endblock %}
+{% block page_title %}Historico{% endblock %}
+
+{% block content %}
+{% if not history_days %}
+<div class="empty-state">
+  <div class="empty-icon"><span class="material-icons-round">history</span></div>
+  <h3>Sem historico ainda</h3>
+  <p>Complete tarefas para ver seu historico aqui.</p>
+</div>
+{% else %}
+<div class="history-feed">
+  {% for day in history_days %}
+  <div class="history-day">
+    <div class="history-day-header">
+      <div class="history-date">
+        <span class="hd-day">{{ day.date.strftime('%d') }}</span>
+        <span class="hd-month">{{ day.date.strftime('%b %Y') }}</span>
+      </div>
+      <div class="history-day-stats">
+        <span class="hd-stat">
+          <span class="material-icons-round">check_circle</span>
+          {{ day.completed }} concluidas
+        </span>
+        <span class="hd-stat">
+          <span class="material-icons-round">schedule</span>
+          {{ day.total_minutes }} min
+        </span>
+      </div>
+    </div>
+    <div class="history-sessions">
+      {% for sd in day.sessions %}
+      {% set s = sd.session %}
+      {% set t = sd.task %}
+      <div class="history-session-item">
+        <div class="hsi-icon" style="color: {{ t.color }}">
+          <span class="material-icons-round">{{ t.icon }}</span>
+        </div>
+        <div class="hsi-body">
+          <span class="hsi-name">{{ t.name }}</span>
+          <div class="hsi-progress">
+            <div class="linear-progress sm">
+              <div class="linear-fill" style="width: {{ sd.progress }}%; background: {{ t.color }}"></div>
+            </div>
+            <span class="hsi-pct">{{ sd.progress }}%</span>
+          </div>
+        </div>
+        <div class="hsi-time">
+          {{ s.time_completed // 60 }}min / {{ t.duration_minutes }}min
+        </div>
+        <div class="hsi-status">
+          {% if s.status == 'completed' %}
+          <span class="badge badge-done"><span class="material-icons-round">check</span></span>
+          {% else %}
+          <span class="badge badge-pending"><span class="material-icons-round">pending</span></span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

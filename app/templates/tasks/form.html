@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}{% if task %}Editar{% else %}Nova{% endif %} Tarefa — FocusFlow{% endblock %}
+{% block page_title %}{% if task %}Editar Tarefa{% else %}Nova Tarefa{% endif %}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+  <div class="form-card">
+    {% if error %}
+    <div class="form-error-banner">
+      <span class="material-icons-round">error_outline</span>{{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="task-form">
+      <div class="form-group">
+        <label>Nome da Tarefa</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">title</span>
+          <input type="text" name="name" value="{{ task.name if task else '' }}"
+                 placeholder="Ex: Ler livro de algoritmos" required maxlength="200">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Descricao <span class="optional">(opcional)</span></label>
+        <textarea name="description" rows="3"
+                  placeholder="Descreva o que voce vai fazer...">{{ task.description if task else '' }}</textarea>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Duracao diaria (minutos)</label>
+          <div class="input-wrapper">
+            <span class="material-icons-round input-icon">timer</span>
+            <input type="number" name="duration_minutes"
+                   value="{{ task.duration_minutes if task else 25 }}"
+                   min="1" max="480" required>
+          </div>
+          <span class="field-hint">Entre 1 e 480 minutos</span>
+        </div>
+
+        <div class="form-group">
+          <label>Recorrencia</label>
+          <label class="toggle-switch recurring-toggle">
+            <input type="checkbox" name="is_recurring" id="is_recurring"
+                   {% if not task or task.is_recurring %}checked{% endif %}>
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+            <span class="toggle-content">
+              <span class="toggle-label">Repetir todo dia</span>
+              <small class="toggle-help">A tarefa aparece automaticamente todos os dias</small>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Cor da Tarefa</label>
+        <div class="color-picker">
+          {% for color in colors %}
+          <label class="color-opt">
+            <input type="radio" name="color" value="{{ color }}"
+                   {% if (task and task.color == color) or (not task and loop.first) %}checked{% endif %}>
+            <span class="color-swatch" style="background: {{ color }}"></span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Icone</label>
+        <div class="icon-picker">
+          {% for icon in icons %}
+          <label class="icon-opt">
+            <input type="radio" name="icon" value="{{ icon }}"
+                   {% if (task and task.icon == icon) or (not task and loop.first) %}checked{% endif %}>
+            <span class="icon-swatch">
+              <span class="material-icons-round">{{ icon }}</span>
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a href="{{ url_for('tasks.list_tasks') }}" class="btn-ghost">Cancelar</a>
+        <button type="submit" class="btn-primary">
+          <span class="material-icons-round">{% if task %}save{% else %}add_task{% endif %}</span>
+          {% if task %}Salvar alteracoes{% else %}Criar tarefa{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

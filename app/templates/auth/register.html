@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Criar Conta — FocusFlow{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+  <div class="auth-bg">
+    <div class="auth-orb orb-1"></div>
+    <div class="auth-orb orb-2"></div>
+    <div class="auth-grid"></div>
+  </div>
+
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-icon"><span class="material-icons-round">bolt</span></span>
+      <span class="brand-name">FocusFlow</span>
+    </div>
+
+    <div class="auth-header">
+      <h1>Criar sua conta</h1>
+      <p>Comece a dominar seu foco hoje mesmo.</p>
+    </div>
+
+    {% if error %}
+    <div class="form-error-banner">
+      <span class="material-icons-round">error_outline</span>{{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="auth-form">
+      <div class="form-group">
+        <label>Nome de usuario</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">person</span>
+          <input type="text" name="username" value="{{ username or '' }}" placeholder="seunome" required minlength="3">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>E-mail</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">mail</span>
+          <input type="email" name="email" value="{{ email or '' }}" placeholder="seu@email.com" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Senha</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">lock</span>
+          <input type="password" name="password" placeholder="Minimo 6 caracteres" required minlength="6" id="pw1">
+          <button type="button" class="toggle-pw" onclick="togglePassword('pw1', this)">
+            <span class="material-icons-round">visibility</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Confirmar Senha</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">lock_reset</span>
+          <input type="password" name="confirm_password" placeholder="Repita a senha" required id="pw2">
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary btn-full">
+        <span class="material-icons-round">rocket_launch</span> Criar conta
+      </button>
+    </form>
+
+    <p class="auth-switch">Ja tem conta? <a href="{{ url_for('auth.login') }}">Fazer login</a></p>
+  </div>
+</div>
+{% endblock %}

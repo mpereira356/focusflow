@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Login — FocusFlow{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+  <div class="auth-bg">
+    <div class="auth-orb orb-1"></div>
+    <div class="auth-orb orb-2"></div>
+    <div class="auth-grid"></div>
+  </div>
+
+  <div class="auth-card">
+    <div class="auth-brand">
+      <span class="brand-icon"><span class="material-icons-round">bolt</span></span>
+      <span class="brand-name">FocusFlow</span>
+    </div>
+
+    <div class="auth-header">
+      <h1>Bem-vindo de volta</h1>
+      <p>Entre na sua conta para continuar focando.</p>
+    </div>
+
+    {% if error %}
+    <div class="form-error-banner">
+      <span class="material-icons-round">error_outline</span>{{ error }}
+    </div>
+    {% endif %}
+
+    <form method="POST" class="auth-form">
+      <div class="form-group">
+        <label>Usuario</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">person</span>
+          <input type="text" name="username" value="{{ username or '' }}" placeholder="seu_usuario" required autocomplete="username">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Senha</label>
+        <div class="input-wrapper">
+          <span class="material-icons-round input-icon">lock</span>
+          <input type="password" name="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required autocomplete="current-password" id="passwordInput">
+          <button type="button" class="toggle-pw" onclick="togglePassword('passwordInput', this)">
+            <span class="material-icons-round">visibility</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="checkbox-label">
+          <input type="checkbox" name="remember"> Lembrar de mim
+        </label>
+      </div>
+
+      <button type="submit" class="btn-primary btn-full">
+        <span class="material-icons-round">login</span> Entrar
+      </button>
+    </form>
+
+    <p class="auth-switch">Nao tem conta? <a href="{{ url_for('auth.register') }}">Criar agora</a></p>
+  </div>
+</div>
+{% endblock %}
