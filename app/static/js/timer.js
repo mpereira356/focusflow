@@ -3,7 +3,7 @@
  * Manages per-task timers with persistence to backend
  */
 
-var timers = {};  // taskId -> { interval, elapsed, duration, status }
+var timers = {};  // taskId -> { interval, elapsed, duration, status, lastClientTickMs }
 
 function canUseBrowserNotification() {
   return typeof window !== 'undefined' && 'Notification' in window;
@@ -16,16 +16,30 @@ function requestNotificationPermissionIfNeeded() {
   }
 }
 
+function ensureNotificationPermissionFromUserAction() {
+  if (!canUseBrowserNotification()) return Promise.resolve('unsupported');
+  if (window.isSecureContext === false) return Promise.resolve('insecure');
+  if (Notification.permission === 'granted') return Promise.resolve('granted');
+  if (Notification.permission === 'denied') return Promise.resolve('denied');
+
+  return Notification.requestPermission().catch(function() {
+    return 'default';
+  });
+}
+
 function notifyTimerCompleted(taskName) {
-  if (!canUseBrowserNotification()) return;
-  if (Notification.permission !== 'granted') return;
+  if (!canUseBrowserNotification()) return false;
+  if (window.isSecureContext === false) return false;
+  if (Notification.permission !== 'granted') return false;
 
   var title = 'Tempo finalizado';
   var body = taskName ? ('A tarefa "' + taskName + '" foi concluida.') : 'Sua sessao foi concluida.';
   try {
     new Notification(title, { body: body });
+    return true;
   } catch (e) {
     console.error(e);
+    return false;
   }
 }
 
@@ -86,7 +100,8 @@ document.addEventListener('DOMContentLoaded', function() {
       duration: duration,
       taskName: taskName,
       status:   status,
-      interval: null
+      interval: null,
+      lastClientTickMs: null
     };
 
     updateUI(taskId);
@@ -117,7 +132,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function timerStart(taskId) {
   var t = timers[taskId];
   if (!t) return;
-  requestNotificationPermissionIfNeeded();
+  ensureNotificationPermissionFromUserAction().then(function(permission) {
+    if (permission === 'unsupported') {
+      showToast('Seu navegador nao suporta notificacoes nativas.');
+    } else if (permission === 'insecure') {
+      showToast('Notificacoes exigem HTTPS ou localhost.');
+    } else if (permission === 'denied') {
+      showToast('Permissao de notificacao bloqueada no navegador.');
+    }
+  });
 
   requestJson(apiUrl('/api/timer/start/' + taskId), { method: 'POST', credentials: 'same-origin' })
     .then(function(data) {
@@ -145,6 +168,7 @@ function timerStart(taskId) {
 function timerPause(taskId) {
   var t = timers[taskId];
   if (!t || t.status !== 'running') return;
+  refreshElapsedFromWallClock(taskId);
   stopLocalTimer(taskId);
   // Sync elapsed to server
   syncToServer(taskId, t.elapsed, function(data) {
@@ -181,9 +205,10 @@ function timerReset(taskId) {
 function startLocalTimer(taskId) {
   var t = timers[taskId];
   if (t.interval) clearInterval(t.interval);
+  t.lastClientTickMs = Date.now();
 
   t.interval = setInterval(function() {
-    t.elapsed += 1;
+    refreshElapsedFromWallClock(taskId);
     if (t.elapsed >= t.duration) {
       t.elapsed = t.duration;
       stopLocalTimer(taskId);
@@ -191,7 +216,9 @@ function startLocalTimer(taskId) {
       syncToServer(taskId, t.elapsed, null);
       updateUI(taskId);
       showToast('Tarefa concluida! Excelente foco!');
-      notifyTimerCompleted(t.taskName);
+      if (!notifyTimerCompleted(t.taskName)) {
+        console.warn('Notificacao nativa nao enviada. Verifique permissao/suporte.');
+      }
       return;
     }
     updateUI(taskId);
@@ -208,6 +235,7 @@ function stopLocalTimer(taskId) {
     clearInterval(t.interval);
     t.interval = null;
   }
+  if (t) t.lastClientTickMs = null;
 }
 
 function syncToServer(taskId, elapsed, callback) {
@@ -223,6 +251,23 @@ function syncToServer(taskId, elapsed, callback) {
   .catch(function(err) {
     console.error(err);
   });
+}
+
+function refreshElapsedFromWallClock(taskId) {
+  var t = timers[taskId];
+  if (!t || t.status !== 'running') return;
+
+  var now = Date.now();
+  if (!t.lastClientTickMs) {
+    t.lastClientTickMs = now;
+    return;
+  }
+
+  var deltaSeconds = Math.floor((now - t.lastClientTickMs) / 1000);
+  if (deltaSeconds <= 0) return;
+
+  t.elapsed = Math.min(t.duration, t.elapsed + deltaSeconds);
+  t.lastClientTickMs += deltaSeconds * 1000;
 }
 
 /* ─── UI update ──────────────────────────────────────────── */
@@ -290,7 +335,23 @@ window.addEventListener('beforeunload', function() {
   Object.keys(timers).forEach(function(id) {
     var t = timers[id];
     if (t.status === 'running') {
+      refreshElapsedFromWallClock(parseInt(id));
       syncToServer(parseInt(id), t.elapsed, null);
     }
+  });
+});
+
+// Reconcile timers when tab returns from background/minimized state
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible') return;
+
+  Object.keys(timers).forEach(function(id) {
+    var taskId = parseInt(id, 10);
+    var t = timers[taskId];
+    if (!t || t.status !== 'running') return;
+
+    refreshElapsedFromWallClock(taskId);
+    updateUI(taskId);
+    syncToServer(taskId, t.elapsed, null);
   });
 });
