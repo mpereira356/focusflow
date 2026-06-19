@@ -1,6 +1,8 @@
 {% extends "base.html" %}
-{% block title %}{% if task %}Editar{% else %}Nova{% endif %} Tarefa — FocusFlow{% endblock %}
+{% block title %}{% if task %}Editar{% else %}Nova{% endif %} Tarefa - FocusFlow{% endblock %}
 {% block page_title %}{% if task %}Editar Tarefa{% else %}Nova Tarefa{% endif %}{% endblock %}
+
+{% set data = form_data if form_data else task %}
 
 {% block content %}
 <div class="form-page">
@@ -16,7 +18,7 @@
         <label>Nome da Tarefa</label>
         <div class="input-wrapper">
           <span class="material-icons-round input-icon">title</span>
-          <input type="text" name="name" value="{{ task.name if task else '' }}"
+          <input type="text" name="name" value="{{ data.name if data else '' }}"
                  placeholder="Ex: Ler livro de algoritmos" required maxlength="200">
         </div>
       </div>
@@ -24,34 +26,59 @@
       <div class="form-group">
         <label>Descricao <span class="optional">(opcional)</span></label>
         <textarea name="description" rows="3"
-                  placeholder="Descreva o que voce vai fazer...">{{ task.description if task else '' }}</textarea>
+                  placeholder="Descreva o que voce vai fazer...">{{ data.description if data else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Tipo de tarefa</label>
+        <div class="task-type-grid">
+          {% set selected_type = data.task_type if data and data.task_type else 'timer' %}
+          <label class="task-type-card">
+            <input type="radio" name="task_type" value="timer" {% if selected_type == 'timer' %}checked{% endif %}>
+            <span class="task-type-box">
+              <span class="material-icons-round">timer</span>
+              <strong>Com tempo</strong>
+              <small>Define minutos por dia e usa cronometro.</small>
+            </span>
+          </label>
+          <label class="task-type-card">
+            <input type="radio" name="task_type" value="check" {% if selected_type == 'check' %}checked{% endif %}>
+            <span class="task-type-box">
+              <span class="material-icons-round">task_alt</span>
+              <strong>Tarefa check</strong>
+              <small>Sem tempo. Voce marca quando resolver.</small>
+            </span>
+          </label>
+        </div>
       </div>
 
       <div class="form-row-2">
-        <div class="form-group">
+        <div class="form-group duration-group" id="durationGroup">
           <label>Duracao diaria (minutos)</label>
           <div class="input-wrapper">
             <span class="material-icons-round input-icon">timer</span>
             <input type="number" name="duration_minutes"
-                   value="{{ task.duration_minutes if task else 25 }}"
-                   min="1" max="480" required>
+                   value="{{ data.duration_minutes if data and data.task_type != 'check' else 25 }}"
+                   min="1" max="480" {% if selected_type == 'timer' %}required{% endif %}>
           </div>
           <span class="field-hint">Entre 1 e 480 minutos</span>
         </div>
 
         <div class="form-group">
           <label>Recorrencia</label>
-          <label class="toggle-switch recurring-toggle">
-            <input type="checkbox" name="is_recurring" id="is_recurring"
-                   {% if not task or task.is_recurring %}checked{% endif %}>
-            <span class="toggle-track">
-              <span class="toggle-thumb"></span>
-            </span>
-            <span class="toggle-content">
+          <div class="toggle-panel">
+            <label class="toggle-switch recurring-toggle">
+              <input type="checkbox" name="is_recurring" id="is_recurring"
+                     {% if not data or data.is_recurring %}checked{% endif %}>
+              <span class="toggle-track">
+                <span class="toggle-thumb"></span>
+              </span>
+            </label>
+            <div class="toggle-copy">
               <span class="toggle-label">Repetir todo dia</span>
               <small class="toggle-help">A tarefa aparece automaticamente todos os dias</small>
-            </span>
-          </label>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -61,7 +88,7 @@
           {% for color in colors %}
           <label class="color-opt">
             <input type="radio" name="color" value="{{ color }}"
-                   {% if (task and task.color == color) or (not task and loop.first) %}checked{% endif %}>
+                   {% if (data and data.color == color) or (not data and loop.first) %}checked{% endif %}>
             <span class="color-swatch" style="background: {{ color }}"></span>
           </label>
           {% endfor %}
@@ -74,7 +101,7 @@
           {% for icon in icons %}
           <label class="icon-opt">
             <input type="radio" name="icon" value="{{ icon }}"
-                   {% if (task and task.icon == icon) or (not task and loop.first) %}checked{% endif %}>
+                   {% if (data and data.icon == icon) or (not data and loop.first) %}checked{% endif %}>
             <span class="icon-swatch">
               <span class="material-icons-round">{{ icon }}</span>
             </span>
@@ -93,4 +120,28 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var typeInputs = document.querySelectorAll('input[name="task_type"]');
+  var durationGroup = document.getElementById('durationGroup');
+  var durationInput = document.querySelector('input[name="duration_minutes"]');
+
+  function syncTaskType() {
+    var selected = document.querySelector('input[name="task_type"]:checked');
+    var isTimer = !selected || selected.value === 'timer';
+    durationGroup.classList.toggle('is-hidden', !isTimer);
+    durationInput.required = isTimer;
+    durationInput.disabled = !isTimer;
+  }
+
+  typeInputs.forEach(function (input) {
+    input.addEventListener('change', syncTaskType);
+  });
+
+  syncTaskType();
+});
+</script>
 {% endblock %}

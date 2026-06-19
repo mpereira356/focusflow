@@ -31,6 +31,7 @@ class Task(db.Model):
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
     duration_minutes = db.Column(db.Integer, nullable=False, default=25)
+    task_type = db.Column(db.String(20), nullable=False, default='timer')
     is_recurring = db.Column(db.Boolean, default=True)
     color = db.Column(db.String(7), default='#4A9EFF')
     icon = db.Column(db.String(50), default='timer')
@@ -38,6 +39,14 @@ class Task(db.Model):
     is_active = db.Column(db.Boolean, default=True)
 
     sessions = db.relationship('TaskSession', backref='task', lazy='dynamic', cascade='all, delete-orphan')
+
+    @property
+    def is_check_task(self):
+        return self.task_type == 'check'
+
+    @property
+    def target_seconds(self):
+        return 1 if self.is_check_task else max(0, self.duration_minutes * 60)
 
     def get_today_session(self):
         today = date.today()

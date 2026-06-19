@@ -86,12 +86,13 @@ document.addEventListener('DOMContentLoaded', function() {
   var cards = document.querySelectorAll('.task-card[data-task-id]');
   cards.forEach(function(card) {
     var taskId   = parseInt(card.dataset.taskId, 10);
+    var taskType = card.dataset.taskType || 'timer';
     var duration = parseInt(card.dataset.duration, 10);
     var elapsed  = parseInt(card.dataset.elapsed, 10);
     var status   = card.dataset.status || 'pending';
     var taskName = card.dataset.taskName || '';
 
-    if (!taskId || isNaN(duration) || isNaN(elapsed)) {
+    if (taskType !== 'timer' || !taskId || isNaN(duration) || isNaN(elapsed)) {
       return;
     }
 

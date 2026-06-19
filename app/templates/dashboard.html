@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — FocusFlow{% endblock %}
+{% block title %}Dashboard - FocusFlow{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
 {% block topbar_actions %}
@@ -9,7 +9,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- Daily summary bar -->
 <div class="summary-bar" data-aos="fade-down">
   <div class="summary-item">
     <span class="summary-label">Progresso do dia</span>
@@ -36,7 +35,6 @@
   </div>
 </div>
 
-<!-- Week overview mini chart -->
 <div class="week-chart-section">
   <h3 class="section-title">Ultimos 7 dias</h3>
   <div class="week-bars">
@@ -52,7 +50,6 @@
   </div>
 </div>
 
-<!-- Task cards -->
 <div class="section-header">
   <h2 class="section-title">Tarefas de hoje</h2>
   {% if task_data %}
@@ -64,7 +61,7 @@
 <div class="empty-state">
   <div class="empty-icon"><span class="material-icons-round">inbox</span></div>
   <h3>Nenhuma tarefa ainda</h3>
-  <p>Crie sua primeira tarefa e comece a focar!</p>
+  <p>Crie sua primeira tarefa e comece a focar.</p>
   <a href="{{ url_for('tasks.create_task') }}" class="btn-primary">
     <span class="material-icons-round">add</span> Criar tarefa
   </a>
@@ -74,11 +71,12 @@
   {% for td in task_data %}
   {% set task = td.task %}
   {% set session = td.session %}
-  {% set dur_sec = task.duration_minutes * 60 %}
+  {% set dur_sec = td.duration_seconds %}
   <div class="task-card {% if session.status == 'completed' %}completed{% elif session.status == 'running' %}running{% endif %}"
        id="card-{{ task.id }}"
        data-task-id="{{ task.id }}"
        data-task-name="{{ task.name|e }}"
+       data-task-type="{{ task.task_type }}"
        data-duration="{{ dur_sec }}"
        data-elapsed="{{ session.time_completed }}"
        data-status="{{ session.status }}">
@@ -94,6 +92,10 @@
         {% endif %}
       </div>
       <div class="task-badges">
+        <span class="badge badge-type">
+          <span class="material-icons-round">{% if task.is_check_task %}task_alt{% else %}timer{% endif %}</span>
+          {% if task.is_check_task %}Check{% else %}Timer{% endif %}
+        </span>
         {% if task.is_recurring %}
         <span class="badge badge-recurring" title="Recorrente diaria">
           <span class="material-icons-round">loop</span>
@@ -107,7 +109,36 @@
       </div>
     </div>
 
-    <!-- Timer display -->
+    {% if task.is_check_task %}
+    <div class="check-display">
+      <div class="check-display-icon" style="background: {{ task.color }}18; color: {{ task.color }}">
+        <span class="material-icons-round">{% if session.status == 'completed' %}task_alt{% else %}radio_button_unchecked{% endif %}</span>
+      </div>
+      <div class="check-display-copy">
+        <span class="check-title">{% if session.status == 'completed' %}Resolvida hoje{% else %}Obrigacao pendente{% endif %}</span>
+        <span class="check-help">Sem tempo definido. Resolva e marque no botao CHECK.</span>
+      </div>
+    </div>
+
+    <div class="timer-controls">
+      <form method="POST" action="{{ url_for('tasks.toggle_check_task', task_id=task.id) }}">
+        <input type="hidden" name="done" value="{% if session.status == 'completed' %}0{% else %}1{% endif %}">
+        <button type="submit" class="ctrl-btn ctrl-check">
+          <span class="material-icons-round">{% if session.status == 'completed' %}undo{% else %}task_alt{% endif %}</span>
+          <span>{% if session.status == 'completed' %}Desfazer{% else %}CHECK{% endif %}</span>
+        </button>
+      </form>
+      <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="icon-btn" title="Editar">
+        <span class="material-icons-round">edit</span>
+      </a>
+      <form method="POST" action="{{ url_for('tasks.delete_task', task_id=task.id) }}"
+            onsubmit="return confirm('Excluir esta tarefa?')">
+        <button type="submit" class="icon-btn danger" title="Excluir">
+          <span class="material-icons-round">delete</span>
+        </button>
+      </form>
+    </div>
+    {% else %}
     <div class="timer-display">
       <div class="timer-ring-wrap">
         <svg class="timer-ring" viewBox="0 0 100 100">
@@ -129,7 +160,6 @@
       </div>
     </div>
 
-    <!-- Controls -->
     <div class="timer-controls">
       {% if session.status != 'completed' %}
       <button class="ctrl-btn ctrl-play {% if session.status == 'running' %}hidden{% endif %}"
@@ -162,13 +192,22 @@
         <span class="material-icons-round">restart_alt</span>
       </button>
       {% endif %}
+      <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="icon-btn" title="Editar">
+        <span class="material-icons-round">edit</span>
+      </a>
+      <form method="POST" action="{{ url_for('tasks.delete_task', task_id=task.id) }}"
+            onsubmit="return confirm('Excluir esta tarefa?')">
+        <button type="submit" class="icon-btn danger" title="Excluir">
+          <span class="material-icons-round">delete</span>
+        </button>
+      </form>
     </div>
+    {% endif %}
   </div>
   {% endfor %}
 </div>
 {% endif %}
 
-<!-- Toast notification -->
 <div class="toast" id="toast">
   <span class="material-icons-round">emoji_events</span>
   <span id="toastMsg">Tarefa concluida!</span>

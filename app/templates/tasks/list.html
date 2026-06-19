@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Minhas Tarefas — FocusFlow{% endblock %}
+{% block title %}Minhas Tarefas - FocusFlow{% endblock %}
 {% block page_title %}Minhas Tarefas{% endblock %}
 
 {% block topbar_actions %}
@@ -13,7 +13,7 @@
 <div class="empty-state">
   <div class="empty-icon"><span class="material-icons-round">checklist</span></div>
   <h3>Sem tarefas criadas</h3>
-  <p>Adicione tarefas e defina quanto tempo quer dedicar a cada uma.</p>
+  <p>Adicione tarefas com tempo ou tarefas de check.</p>
   <a href="{{ url_for('tasks.create_task') }}" class="btn-primary">
     <span class="material-icons-round">add</span> Criar primeira tarefa
   </a>
@@ -32,6 +32,10 @@
       <div class="tlc-top">
         <h4>{{ task.name }}</h4>
         <div class="tlc-badges">
+          <span class="badge badge-type">
+            <span class="material-icons-round">{% if task.is_check_task %}task_alt{% else %}timer{% endif %}</span>
+            {% if task.is_check_task %}Check{% else %}Timer{% endif %}
+          </span>
           {% if task.is_recurring %}
           <span class="badge badge-recurring"><span class="material-icons-round">loop</span> Diaria</span>
           {% endif %}
@@ -44,17 +48,35 @@
       <p class="tlc-desc">{{ task.description }}</p>
       {% endif %}
       <div class="tlc-stats">
+        {% if task.is_check_task %}
+        <span><span class="material-icons-round">task_alt</span> Resolver e marcar check</span>
+        {% else %}
         <span><span class="material-icons-round">schedule</span> {{ task.duration_minutes }} min/dia</span>
+        {% endif %}
         <span><span class="material-icons-round">today</span> {{ task.created_at.strftime('%d/%m/%Y') }}</span>
       </div>
       <div class="tlc-progress">
         <div class="linear-progress">
           <div class="linear-fill" style="width: {{ td.progress }}%; background: {{ task.color }}"></div>
         </div>
-        <span class="tlc-pct">{{ td.progress }}% hoje</span>
+        <span class="tlc-pct">
+          {% if task.is_check_task %}
+            {% if session.status == 'completed' %}Resolvida{% else %}Pendente{% endif %}
+          {% else %}
+            {{ td.progress }}% hoje
+          {% endif %}
+        </span>
       </div>
     </div>
     <div class="tlc-actions">
+      {% if task.is_check_task %}
+      <form method="POST" action="{{ url_for('tasks.toggle_check_task', task_id=task.id) }}">
+        <input type="hidden" name="done" value="{% if session.status == 'completed' %}0{% else %}1{% endif %}">
+        <button type="submit" class="icon-btn success" title="{% if session.status == 'completed' %}Desmarcar{% else %}Marcar resolvida{% endif %}">
+          <span class="material-icons-round">{% if session.status == 'completed' %}undo{% else %}task_alt{% endif %}</span>
+        </button>
+      </form>
+      {% endif %}
       <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="icon-btn" title="Editar">
         <span class="material-icons-round">edit</span>
       </a>

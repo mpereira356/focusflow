@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     name             VARCHAR(200) NOT NULL,
     description      TEXT,
     duration_minutes INT          NOT NULL DEFAULT 25,
+    task_type        VARCHAR(20)  NOT NULL DEFAULT 'timer',
     is_recurring     TINYINT(1)   NOT NULL DEFAULT 1,
     color            VARCHAR(7)   NOT NULL DEFAULT '#4A9EFF',
     icon             VARCHAR(50)  NOT NULL DEFAULT 'timer',

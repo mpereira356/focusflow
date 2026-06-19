@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Historico — FocusFlow{% endblock %}
+{% block title %}Historico - FocusFlow{% endblock %}
 {% block page_title %}Historico{% endblock %}
 
 {% block content %}
@@ -47,7 +47,11 @@
           </div>
         </div>
         <div class="hsi-time">
-          {{ s.time_completed // 60 }}min / {{ t.duration_minutes }}min
+          {% if t.is_check_task %}
+            {% if s.status == 'completed' %}Resolvida{% else %}Pendente{% endif %}
+          {% else %}
+            {{ s.time_completed // 60 }}min / {{ t.duration_minutes }}min
+          {% endif %}
         </div>
         <div class="hsi-status">
           {% if s.status == 'completed' %}

@@ -30,11 +30,13 @@ def dashboard():
 
     for task in tasks:
         session = task.get_or_create_today_session()
-        duration_seconds = task.duration_minutes * 60
-        progress = min(100, int((session.time_completed / duration_seconds) * 100)) if duration_seconds > 0 else 0
+        duration_seconds = task.target_seconds
+        progress = 100 if session.status == 'completed' else (
+            min(100, int((session.time_completed / duration_seconds) * 100)) if duration_seconds > 0 else 0
+        )
         
         total_minutes_goal += task.duration_minutes
-        total_seconds_done += session.time_completed
+        total_seconds_done += session.time_completed if not task.is_check_task else 0
         if session.status == 'completed':
             completed_count += 1
 
@@ -98,7 +100,9 @@ def history():
                 day_sessions.append({
                     'session': s,
                     'task': s.task,
-                    'progress': min(100, int((s.time_completed / (s.task.duration_minutes * 60)) * 100)) if s.task.duration_minutes > 0 else 0
+                    'progress': 100 if s.status == 'completed' else (
+                        min(100, int((s.time_completed / s.task.target_seconds) * 100)) if s.task.target_seconds > 0 else 0
+                    )
                 })
             history_days.append({
                 'date': d,
