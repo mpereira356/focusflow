@@ -44,6 +44,7 @@ def dashboard():
             'task': task,
             'session': session,
             'progress': progress,
+            'duration_seconds': duration_seconds,
             'remaining_seconds': max(0, duration_seconds - session.time_completed),
         })
 
