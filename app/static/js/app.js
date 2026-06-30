@@ -34,7 +34,6 @@ function initSortableTaskGrids() {
   grids.forEach(function(grid) {
     var selector = '.task-card[data-task-id], .task-list-card[data-task-id]';
     var draggingCard = null;
-    var armedCard = null;
     var startOrder = '';
 
     function getCards() {
@@ -68,13 +67,12 @@ function initSortableTaskGrids() {
     }
 
     getCards().forEach(function(card) {
-      card.setAttribute('draggable', 'true');
+      var handle = card.querySelector('.drag-handle');
+      if (!handle) return;
 
-      card.addEventListener('dragstart', function(event) {
-        if (armedCard !== card) {
-          event.preventDefault();
-          return;
-        }
+      handle.setAttribute('draggable', 'true');
+
+      handle.addEventListener('dragstart', function(event) {
         startOrder = getOrderSignature();
         draggingCard = card;
         card.classList.add('dragging');
@@ -82,12 +80,11 @@ function initSortableTaskGrids() {
         event.dataTransfer.setData('text/plain', card.dataset.taskId);
       });
 
-      card.addEventListener('dragend', function() {
+      handle.addEventListener('dragend', function() {
         var endOrder = getOrderSignature();
         card.classList.remove('dragging');
         getCards().forEach(function(item) { item.classList.remove('drag-over'); });
         draggingCard = null;
-        armedCard = null;
         if (startOrder && startOrder !== endOrder) {
           persistOrder();
         }
@@ -115,23 +112,6 @@ function initSortableTaskGrids() {
         event.preventDefault();
         card.classList.remove('drag-over');
       });
-    });
-
-    grid.addEventListener('mousedown', function(event) {
-      var handle = event.target.closest('.drag-handle');
-      armedCard = handle ? handle.closest(selector) : null;
-    });
-
-    grid.addEventListener('mouseup', function() {
-      if (!draggingCard) {
-        armedCard = null;
-      }
-    });
-
-    grid.addEventListener('mouseleave', function() {
-      if (!draggingCard) {
-        armedCard = null;
-      }
     });
   });
 }
