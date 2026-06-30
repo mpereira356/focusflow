@@ -98,14 +98,13 @@ function initSortableTaskGrids() {
         if (!draggingCard || draggingCard === card) return;
         event.preventDefault();
         card.classList.add('drag-over');
+      });
 
-        var rect = card.getBoundingClientRect();
-        var midpoint = rect.top + rect.height / 2;
-        if (event.clientY < midpoint) {
-          grid.insertBefore(draggingCard, card);
-        } else {
-          grid.insertBefore(draggingCard, card.nextSibling);
-        }
+      card.addEventListener('dragenter', function(event) {
+        if (!draggingCard || draggingCard === card) return;
+        event.preventDefault();
+        card.classList.add('drag-over');
+        grid.insertBefore(draggingCard, card);
       });
 
       card.addEventListener('dragleave', function() {
