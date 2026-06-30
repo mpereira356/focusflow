@@ -3,145 +3,664 @@
 {% block page_title %}{% if task %}Editar Tarefa{% else %}Nova Tarefa{% endif %}{% endblock %}
 
 {% set data = form_data if form_data else task %}
+{% set raw = raw_form if raw_form else none %}
+{% set selected_type = (raw.get('task_type') if raw else (data.task_type if data and data.task_type else 'timer')) %}
+{% set selected_priority = (raw.get('priority') if raw else (data.priority if data and data.priority else 'medium')) %}
+{% set selected_recurrence = (raw.get('recurrence_type') if raw else (data.recurrence_type if data and data.recurrence_type else 'daily')) %}
+{% set selected_project = (raw.get('project_name') if raw else (data.project_name if data and data.project_name else '')) %}
+{% set selected_location = (raw.get('location') if raw else (data.location if data and data.location else '')) %}
+{% set selected_due_date = (raw.get('due_date') if raw else (data.due_date.strftime('%Y-%m-%d') if data and data.due_date else '')) %}
+{% set selected_due_time = (raw.get('due_time') if raw else (data.due_time if data and data.due_time else '')) %}
+{% set selected_reminder = (raw.get('reminder_offset_minutes') if raw else (data.reminder_offset_minutes|string if data and data.reminder_offset_minutes is not none else '')) %}
+{% set selected_effort = (raw.get('effort_level') if raw else (data.effort_level|string if data and data.effort_level else '')) %}
+{% set selected_energy = (raw.get('energy_level') if raw else (data.energy_level|string if data and data.energy_level else '')) %}
+{% set selected_tags = raw.get('tags') if raw else (data.tags_list|join('\n') if task else '') %}
+{% set selected_subtasks = raw.get('subtasks') if raw else ((data.subtasks | map(attribute='title') | list | join('\n')) if task else '') %}
+{% set selected_links = raw.get('useful_links') if raw else (data.useful_links|join('\n') if task else '') %}
+{% set selected_attachment_links = raw.get('attachment_links') if raw else '' %}
+{% set selected_icon_emoji = (raw.get('icon_emoji') if raw else (data.icon_emoji if data and data.icon_emoji else '')) %}
+{% set selected_icon = (raw.get('icon') if raw else (data.icon if data and data.icon else icons[0])) %}
+{% set selected_color = (raw.get('color') if raw else (data.color if data and data.color else colors[0])) %}
+{% set recurrence_days_selected = raw.getlist('recurrence_days') if raw else ((data.recurrence_days.split(',') if data and data.recurrence_days else [])) %}
 
 {% block content %}
-<div class="form-page">
-  <div class="form-card">
+<div class="task-wizard-page">
+  <div class="task-wizard-main">
+    <div class="task-wizard-top">
+      <div>
+        <h2 class="wizard-heading">{% if task %}Refinar tarefa{% else %}Planejar nova tarefa{% endif %}</h2>
+        <p class="wizard-subtitle">Defina prioridade, tempo, contexto e organizacao sem perder velocidade.</p>
+      </div>
+      <div class="completion-card">
+        <span>Informacoes obrigatorias</span>
+        <div class="completion-bar"><div class="completion-fill" id="completionFill"></div></div>
+        <strong id="completionText">0%</strong>
+      </div>
+    </div>
+
     {% if error %}
     <div class="form-error-banner">
       <span class="material-icons-round">error_outline</span>{{ error }}
     </div>
     {% endif %}
 
-    <form method="POST" class="task-form">
-      <div class="form-group">
-        <label>Nome da Tarefa</label>
-        <div class="input-wrapper">
-          <span class="material-icons-round input-icon">title</span>
-          <input type="text" name="name" value="{{ data.name if data else '' }}"
-                 placeholder="Ex: Ler livro de algoritmos" required maxlength="200">
-        </div>
-      </div>
+    <div class="wizard-steps" id="wizardSteps">
+      <button type="button" class="wizard-step is-active" data-step-target="1"><span>1</span> Informacoes</button>
+      <button type="button" class="wizard-step" data-step-target="2"><span>2</span> Tempo</button>
+      <button type="button" class="wizard-step" data-step-target="3"><span>3</span> Prioridade</button>
+      <button type="button" class="wizard-step" data-step-target="4"><span>4</span> Organizacao</button>
+      <button type="button" class="wizard-step" data-step-target="5"><span>5</span> Revisao</button>
+    </div>
 
-      <div class="form-group">
-        <label>Descricao <span class="optional">(opcional)</span></label>
-        <textarea name="description" rows="3"
-                  placeholder="Descreva o que voce vai fazer...">{{ data.description if data else '' }}</textarea>
-      </div>
+    <form method="POST" class="task-form wizard-form" enctype="multipart/form-data" id="taskForm">
+      <input type="hidden" name="form_action" id="formAction" value="publish">
 
-      <div class="form-group">
-        <label>Tipo de tarefa</label>
-        <div class="task-type-grid">
-          {% set selected_type = data.task_type if data and data.task_type else 'timer' %}
-          <label class="task-type-card">
-            <input type="radio" name="task_type" value="timer" {% if selected_type == 'timer' %}checked{% endif %}>
-            <span class="task-type-box">
-              <span class="material-icons-round">timer</span>
-              <strong>Com tempo</strong>
-              <small>Define minutos por dia e usa cronometro.</small>
-            </span>
-          </label>
-          <label class="task-type-card">
-            <input type="radio" name="task_type" value="check" {% if selected_type == 'check' %}checked{% endif %}>
-            <span class="task-type-box">
-              <span class="material-icons-round">task_alt</span>
-              <strong>Tarefa check</strong>
-              <small>Sem tempo. Voce marca quando resolver.</small>
-            </span>
-          </label>
-        </div>
-      </div>
-
-      <div class="form-row-2">
-        <div class="form-group duration-group" id="durationGroup">
-          <label>Duracao diaria (minutos)</label>
-          <div class="input-wrapper">
-            <span class="material-icons-round input-icon">timer</span>
-            <input type="number" name="duration_minutes"
-                   value="{{ data.duration_minutes if data and data.task_type != 'check' else 25 }}"
-                   min="1" max="480" {% if selected_type == 'timer' %}required{% endif %}>
+      <section class="wizard-panel is-active" data-step="1">
+        <div class="form-section">
+          <div class="form-section-header">
+            <h3>Base da tarefa</h3>
+            <p>Nome, descricao, tipo e contexto principal.</p>
           </div>
-          <span class="field-hint">Entre 1 e 480 minutos</span>
-        </div>
 
-        <div class="form-group">
-          <label>Recorrencia</label>
-          <div class="toggle-panel">
-            <label class="toggle-switch recurring-toggle">
-              <input type="checkbox" name="is_recurring" id="is_recurring"
-                     {% if not data or data.is_recurring %}checked{% endif %}>
-              <span class="toggle-track">
-                <span class="toggle-thumb"></span>
-              </span>
-            </label>
-            <div class="toggle-copy">
-              <span class="toggle-label">Repetir todo dia</span>
-              <small class="toggle-help">A tarefa aparece automaticamente todos os dias</small>
+          <div class="form-group">
+            <label>Nome da tarefa</label>
+            <div class="input-wrapper">
+              <span class="material-icons-round input-icon">title</span>
+              <input type="text" name="name" id="taskNameInput" value="{{ raw.get('name') if raw else (data.name if data else '') }}"
+                     placeholder="Ex: Estudar React" maxlength="200" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Descricao <span class="optional">(opcional)</span></label>
+            <textarea name="description" id="taskDescriptionInput" rows="4"
+                      placeholder="Descreva rapidamente o objetivo da tarefa...">{{ raw.get('description') if raw else (data.description if data else '') }}</textarea>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Tipo da tarefa</label>
+              <div class="task-type-grid">
+                <label class="task-type-card">
+                  <input type="radio" name="task_type" value="timer" {% if selected_type == 'timer' %}checked{% endif %}>
+                  <span class="task-type-box">
+                    <span class="material-icons-round">timer</span>
+                    <strong>Com tempo</strong>
+                    <small>Usa cronometro e meta diaria.</small>
+                  </span>
+                </label>
+                <label class="task-type-card">
+                  <input type="radio" name="task_type" value="check" {% if selected_type == 'check' %}checked{% endif %}>
+                  <span class="task-type-box">
+                    <span class="material-icons-round">task_alt</span>
+                    <strong>Tarefa check</strong>
+                    <small>Sem tempo. Resolve e marca.</small>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Projeto</label>
+              <div class="input-wrapper">
+                <span class="material-icons-round input-icon">folder</span>
+                <input type="text" name="project_name" id="projectInput" list="projectOptions"
+                       value="{{ selected_project }}" placeholder="Ex: Trabalho">
+              </div>
+              <datalist id="projectOptions">
+                {% for project in project_options %}
+                <option value="{{ project }}"></option>
+                {% endfor %}
+              </datalist>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Tags</label>
+              <textarea name="tags" id="tagsInput" rows="3"
+                        placeholder="Uma tag por linha ou separadas por virgula">{{ selected_tags }}</textarea>
+              <div class="quick-chip-row">
+                {% for tag in ['React', 'Laravel', 'Financeiro', 'Compras', 'Mercado Livre', 'Cliente'] %}
+                <button type="button" class="mini-chip" data-append-target="tagsInput" data-append-value="{{ tag }}">{{ tag }}</button>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Local</label>
+              <div class="input-wrapper">
+                <span class="material-icons-round input-icon">place</span>
+                <input type="text" name="location" id="locationInput" list="locationOptions"
+                       value="{{ selected_location }}" placeholder="Ex: Online">
+              </div>
+              <datalist id="locationOptions">
+                {% for location in location_options %}
+                <option value="{{ location }}"></option>
+                {% endfor %}
+              </datalist>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="form-group">
-        <label>Cor da Tarefa</label>
-        <div class="color-picker">
-          {% for color in colors %}
-          <label class="color-opt">
-            <input type="radio" name="color" value="{{ color }}"
-                   {% if (data and data.color == color) or (not data and loop.first) %}checked{% endif %}>
-            <span class="color-swatch" style="background: {{ color }}"></span>
-          </label>
-          {% endfor %}
+      <section class="wizard-panel" data-step="2">
+        <div class="form-section">
+          <div class="form-section-header">
+            <h3>Tempo e agenda</h3>
+            <p>Defina duracao, vencimento, lembrete e recorrencia.</p>
+          </div>
+
+          <div class="form-group duration-group" id="durationGroup">
+            <label>Tempo estimado</label>
+            <div class="duration-presets">
+              {% set preset_value = raw.get('duration_preset') if raw else '' %}
+              {% for preset in duration_presets %}
+              <label class="duration-chip">
+                <input type="radio" name="duration_preset" value="{{ preset.minutes }}" {% if preset_value == preset.minutes|string %}checked{% endif %}>
+                <span>{{ preset.label }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <div class="form-row-2 split-compact">
+              <div class="form-group">
+                <label>Horas</label>
+                <div class="input-wrapper">
+                  <span class="material-icons-round input-icon">schedule</span>
+                  <input type="number" name="duration_hours" min="0" max="8"
+                         value="{{ raw.get('duration_hours', 0) if raw else ((data.duration_minutes // 60) if data and data.duration_minutes else 0) }}">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Minutos</label>
+                <div class="input-wrapper">
+                  <span class="material-icons-round input-icon">more_time</span>
+                  <input type="number" name="duration_minutes_extra" min="0" max="59"
+                         value="{{ raw.get('duration_minutes_extra', (data.duration_minutes % 60) if data and data.duration_minutes else 25) if raw else ((data.duration_minutes % 60) if data and data.duration_minutes else 25) }}">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Data de vencimento</label>
+              <div class="input-wrapper">
+                <span class="material-icons-round input-icon">event</span>
+                <input type="date" name="due_date" id="dueDateInput" value="{{ selected_due_date }}">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Hora <span class="optional">(opcional)</span></label>
+              <div class="input-wrapper">
+                <span class="material-icons-round input-icon">schedule</span>
+                <input type="time" name="due_time" id="dueTimeInput" value="{{ selected_due_time }}">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Lembrete</label>
+              <select name="reminder_offset_minutes" id="reminderInput" class="smart-select">
+                {% for option in reminder_options %}
+                <option value="{{ option.value }}" {% if selected_reminder == option.value %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Recorrencia</label>
+              <select name="recurrence_type" id="recurrenceTypeInput" class="smart-select">
+                {% for option in recurrence_options %}
+                <option value="{{ option.value }}" {% if selected_recurrence == option.value %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="custom-recurrence-box {% if selected_recurrence != 'custom' %}is-hidden{% endif %}" id="customRecurrenceBox">
+            <div class="form-row-2 split-compact">
+              <div class="form-group">
+                <label>A cada</label>
+                <div class="input-wrapper">
+                  <span class="material-icons-round input-icon">sync</span>
+                  <input type="number" name="recurrence_interval" min="1" max="365"
+                         value="{{ raw.get('recurrence_interval', data.recurrence_interval if data and data.recurrence_interval else 1) if raw else (data.recurrence_interval if data and data.recurrence_interval else 1) }}">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Data final <span class="optional">(opcional)</span></label>
+                <div class="input-wrapper">
+                  <span class="material-icons-round input-icon">event_repeat</span>
+                  <input type="date" name="recurrence_end_date"
+                         value="{{ raw.get('recurrence_end_date') if raw else (data.recurrence_end_date.strftime('%Y-%m-%d') if data and data.recurrence_end_date else '') }}">
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Dias da semana</label>
+              <div class="weekday-grid">
+                {% for day in weekday_options %}
+                <label class="weekday-chip">
+                  <input type="checkbox" name="recurrence_days" value="{{ day.value }}" {% if day.value in recurrence_days_selected %}checked{% endif %}>
+                  <span>{{ day.label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="form-group">
-        <label>Icone</label>
-        <div class="icon-picker">
-          {% for icon in icons %}
-          <label class="icon-opt">
-            <input type="radio" name="icon" value="{{ icon }}"
-                   {% if (data and data.icon == icon) or (not data and loop.first) %}checked{% endif %}>
-            <span class="icon-swatch">
-              <span class="material-icons-round">{{ icon }}</span>
-            </span>
-          </label>
-          {% endfor %}
+      <section class="wizard-panel" data-step="3">
+        <div class="form-section">
+          <div class="form-section-header">
+            <h3>Prioridade e energia</h3>
+            <p>Defina urgencia, esforco e contexto para futuras recomendacoes.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Prioridade</label>
+            <div class="priority-grid">
+              {% for option in priority_options %}
+              <label class="priority-card" style="--priority-color: {{ option.color }}">
+                <input type="radio" name="priority" value="{{ option.value }}" {% if selected_priority == option.value %}checked{% endif %}>
+                <span class="priority-flag material-icons-round">flag</span>
+                <strong>{{ option.label }}</strong>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Estimativa de esforco</label>
+              <select name="effort_level" id="effortInput" class="smart-select">
+                <option value="">Selecione</option>
+                <option value="1" {% if selected_effort == '1' %}selected{% endif %}>Muito facil</option>
+                <option value="2" {% if selected_effort == '2' %}selected{% endif %}>Facil</option>
+                <option value="3" {% if selected_effort == '3' %}selected{% endif %}>Medio</option>
+                <option value="4" {% if selected_effort == '4' %}selected{% endif %}>Dificil</option>
+                <option value="5" {% if selected_effort == '5' %}selected{% endif %}>Muito dificil</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Nivel de energia</label>
+              <select name="energy_level" id="energyInput" class="smart-select">
+                <option value="">Selecione</option>
+                <option value="1" {% if selected_energy == '1' %}selected{% endif %}>Baixa</option>
+                <option value="2" {% if selected_energy == '2' %}selected{% endif %}>Media</option>
+                <option value="3" {% if selected_energy == '3' %}selected{% endif %}>Alta</option>
+              </select>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="form-actions">
-        <a href="{{ url_for('tasks.list_tasks') }}" class="btn-ghost">Cancelar</a>
-        <button type="submit" class="btn-primary">
-          <span class="material-icons-round">{% if task %}save{% else %}add_task{% endif %}</span>
-          {% if task %}Salvar alteracoes{% else %}Criar tarefa{% endif %}
-        </button>
+      <section class="wizard-panel" data-step="4">
+        <div class="form-section">
+          <div class="form-section-header">
+            <h3>Organizacao e materiais</h3>
+            <p>Subtarefas, links, anexos e identidade visual.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Subtarefas</label>
+            <textarea name="subtasks" id="subtasksInput" rows="5"
+                      placeholder="Uma subtarefa por linha">{{ selected_subtasks }}</textarea>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Links uteis</label>
+              <textarea name="useful_links" id="linksInput" rows="4"
+                        placeholder="https://github.com&#10;https://trello.com">{{ selected_links }}</textarea>
+            </div>
+            <div class="form-group">
+              <label>Links de anexos</label>
+              <textarea name="attachment_links" rows="4"
+                        placeholder="Cole links de docs, PDFs ou referencias externas">{{ selected_attachment_links }}</textarea>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Anexar arquivos</label>
+            <label class="file-drop">
+              <input type="file" name="attachments" multiple>
+              <span class="material-icons-round">attach_file</span>
+              <strong>Imagens, PDF, Word, Excel</strong>
+              <small>Os arquivos enviados ficam salvos para a tarefa.</small>
+            </label>
+            {% if task and task.attachments %}
+            <div class="attachment-list">
+              {% for attachment in task.attachments %}
+              <a href="{{ attachment.url }}" target="_blank" class="attachment-pill">{{ attachment.name }}</a>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <div class="form-group">
+            <label>Cor da tarefa</label>
+            <div class="color-picker">
+              {% for color in colors %}
+              <label class="color-opt">
+                <input type="radio" name="color" value="{{ color }}" {% if selected_color == color %}checked{% endif %}>
+                <span class="color-swatch" style="background: {{ color }}"></span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label>Pesquisar icone</label>
+              <div class="input-wrapper">
+                <span class="material-icons-round input-icon">search</span>
+                <input type="text" id="iconSearchInput" placeholder="Buscar entre os icones">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Emoji <span class="optional">(opcional)</span></label>
+              <div class="input-wrapper">
+                <span class="material-icons-round input-icon">sentiment_satisfied</span>
+                <input type="text" name="icon_emoji" id="iconEmojiInput" maxlength="8" value="{{ selected_icon_emoji }}"
+                       placeholder="📘">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Icone</label>
+            <div class="icon-picker icon-picker-extended" id="iconPicker">
+              {% for icon in icons %}
+              <label class="icon-opt" data-icon-name="{{ icon }}">
+                <input type="radio" name="icon" value="{{ icon }}" {% if selected_icon == icon %}checked{% endif %}>
+                <span class="icon-swatch">
+                  <span class="material-icons-round">{{ icon }}</span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Imagem personalizada do icone <span class="optional">(opcional)</span></label>
+            <label class="file-drop compact">
+              <input type="file" name="custom_icon_upload" accept="image/*">
+              <span class="material-icons-round">image</span>
+              <strong>Enviar imagem quadrada</strong>
+            </label>
+            {% if task and task.custom_icon_image %}
+            <div class="custom-icon-preview">
+              <img src="{{ task.custom_icon_image }}" alt="Icone personalizado">
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="wizard-panel" data-step="5">
+        <div class="form-section">
+          <div class="form-section-header">
+            <h3>Revisao final</h3>
+            <p>Cheque os dados antes de salvar ou deixar como rascunho.</p>
+          </div>
+          <div class="review-grid" id="reviewGrid"></div>
+        </div>
+      </section>
+
+      <div class="form-actions wizard-actions">
+        <div class="wizard-nav-actions">
+          <button type="button" class="btn-ghost" id="prevStepBtn">Voltar</button>
+          <button type="button" class="btn-ghost" id="nextStepBtn">Proximo</button>
+        </div>
+        <div class="primary-actions">
+          {% if task %}
+          <button type="submit" class="btn-ghost" formaction="{{ url_for('tasks.duplicate_task', task_id=task.id) }}" formmethod="post">
+            <span class="material-icons-round">content_copy</span> Duplicar
+          </button>
+          {% endif %}
+          <a href="{{ url_for('tasks.list_tasks') }}" class="btn-ghost">Cancelar</a>
+          <button type="submit" class="btn-ghost" data-submit-action="draft">
+            <span class="material-icons-round">draft</span> Salvar rascunho
+          </button>
+          <button type="submit" class="btn-primary" data-submit-action="publish">
+            <span class="material-icons-round">{% if task %}save{% else %}add_task{% endif %}</span>
+            {% if task %}Salvar tarefa{% else %}Criar tarefa{% endif %}
+          </button>
+        </div>
       </div>
     </form>
   </div>
+
+  <aside class="task-preview-sidebar">
+    <div class="task-preview-card" id="taskPreviewCard">
+      <div class="preview-header">
+        <span class="preview-eyebrow">Resumo da tarefa</span>
+        <div class="preview-type" id="previewType">Com tempo</div>
+      </div>
+      <div class="preview-hero">
+        <div class="preview-icon" id="previewIcon"><span class="material-icons-round">{{ selected_icon }}</span></div>
+        <div>
+          <h3 id="previewName">{{ raw.get('name') if raw else (data.name if data else 'Nova tarefa') }}</h3>
+          <p id="previewDescription">{{ raw.get('description') if raw else (data.description if data else 'Defina os detalhes e acompanhe o resumo em tempo real.') }}</p>
+        </div>
+      </div>
+      <div class="preview-meta-list" id="previewMetaList">
+        <div><span>Prioridade</span><strong id="previewPriority">Media</strong></div>
+        <div><span>Categoria</span><strong id="previewProject">{{ selected_project or '-' }}</strong></div>
+        <div><span>Data</span><strong id="previewDate">{{ selected_due_date or '-' }}</strong></div>
+        <div><span>Horario</span><strong id="previewTime">{{ selected_due_time or '-' }}</strong></div>
+        <div><span>Recorrencia</span><strong id="previewRecurrence">Diariamente</strong></div>
+        <div><span>Cor</span><strong id="previewColorLabel">{{ selected_color }}</strong></div>
+        <div><span>Energia</span><strong id="previewEnergy">{{ selected_energy or '-' }}</strong></div>
+      </div>
+      <div class="preview-subsection">
+        <span>Tags</span>
+        <div class="preview-chip-list" id="previewTags"></div>
+      </div>
+      <div class="preview-subsection">
+        <span>Subtarefas</span>
+        <div class="preview-check-list" id="previewSubtasks"></div>
+      </div>
+    </div>
+  </aside>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  var typeInputs = document.querySelectorAll('input[name="task_type"]');
-  var durationGroup = document.getElementById('durationGroup');
-  var durationInput = document.querySelector('input[name="duration_minutes"]');
+  var form = document.getElementById('taskForm');
+  var panels = Array.from(document.querySelectorAll('.wizard-panel'));
+  var stepButtons = Array.from(document.querySelectorAll('.wizard-step'));
+  var currentStep = 1;
 
-  function syncTaskType() {
-    var selected = document.querySelector('input[name="task_type"]:checked');
-    var isTimer = !selected || selected.value === 'timer';
-    durationGroup.classList.toggle('is-hidden', !isTimer);
-    durationInput.required = isTimer;
-    durationInput.disabled = !isTimer;
+  function showStep(step) {
+    currentStep = step;
+    panels.forEach(function (panel) {
+      panel.classList.toggle('is-active', Number(panel.dataset.step) === step);
+    });
+    stepButtons.forEach(function (button) {
+      button.classList.toggle('is-active', Number(button.dataset.stepTarget) === step);
+    });
+    document.getElementById('prevStepBtn').disabled = step === 1;
+    document.getElementById('nextStepBtn').disabled = step === panels.length;
   }
 
-  typeInputs.forEach(function (input) {
-    input.addEventListener('change', syncTaskType);
+  stepButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      showStep(Number(button.dataset.stepTarget));
+    });
+  });
+
+  document.getElementById('prevStepBtn').addEventListener('click', function () {
+    if (currentStep > 1) showStep(currentStep - 1);
+  });
+
+  document.getElementById('nextStepBtn').addEventListener('click', function () {
+    if (currentStep < panels.length) showStep(currentStep + 1);
+  });
+
+  var recurrenceInput = document.getElementById('recurrenceTypeInput');
+  var durationGroup = document.getElementById('durationGroup');
+  var customRecurrenceBox = document.getElementById('customRecurrenceBox');
+  var typeInputs = Array.from(document.querySelectorAll('input[name="task_type"]'));
+
+  function selectedTaskType() {
+    var checked = document.querySelector('input[name="task_type"]:checked');
+    return checked ? checked.value : 'timer';
+  }
+
+  function syncTaskType() {
+    var isTimer = selectedTaskType() === 'timer';
+    durationGroup.classList.toggle('is-hidden', !isTimer);
+  }
+
+  function syncRecurrence() {
+    customRecurrenceBox.classList.toggle('is-hidden', recurrenceInput.value !== 'custom');
+  }
+
+  typeInputs.forEach(function (input) { input.addEventListener('change', syncTaskType); });
+  recurrenceInput.addEventListener('change', syncRecurrence);
+
+  document.querySelectorAll('[data-submit-action]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      document.getElementById('formAction').value = button.dataset.submitAction;
+    });
+  });
+
+  document.querySelectorAll('[data-append-target]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var target = document.getElementById(button.dataset.appendTarget);
+      if (!target) return;
+      var nextValue = target.value.trim() ? target.value.trim() + '\n' + button.dataset.appendValue : button.dataset.appendValue;
+      target.value = nextValue;
+      target.dispatchEvent(new Event('input'));
+    });
+  });
+
+  var iconSearch = document.getElementById('iconSearchInput');
+  iconSearch.addEventListener('input', function () {
+    var term = iconSearch.value.trim().toLowerCase();
+    document.querySelectorAll('#iconPicker .icon-opt').forEach(function (item) {
+      item.style.display = !term || item.dataset.iconName.indexOf(term) !== -1 ? '' : 'none';
+    });
+  });
+
+  var completionFill = document.getElementById('completionFill');
+  var completionText = document.getElementById('completionText');
+
+  function formatDate(dateValue) {
+    if (!dateValue) return '-';
+    var parts = dateValue.split('-');
+    if (parts.length !== 3) return dateValue;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function collectLines(value) {
+    return value.split(/\n|,/).map(function (item) { return item.trim(); }).filter(Boolean);
+  }
+
+  function updatePreview() {
+    var name = document.getElementById('taskNameInput').value.trim() || 'Nova tarefa';
+    var description = document.getElementById('taskDescriptionInput').value.trim() || 'Defina os detalhes e acompanhe o resumo em tempo real.';
+    var project = document.getElementById('projectInput').value.trim() || '-';
+    var dueDate = document.getElementById('dueDateInput').value;
+    var dueTime = document.getElementById('dueTimeInput').value || '-';
+    var recurrence = recurrenceInput.options[recurrenceInput.selectedIndex].text;
+    var energyInput = document.getElementById('energyInput');
+    var energy = energyInput.value ? energyInput.options[energyInput.selectedIndex].text : '-';
+    var priorityInput = document.querySelector('input[name="priority"]:checked');
+    var priorityLabel = priorityInput ? priorityInput.parentNode.querySelector('strong').textContent : 'Media';
+    var color = document.querySelector('input[name="color"]:checked');
+    var emoji = document.getElementById('iconEmojiInput').value.trim();
+    var icon = document.querySelector('input[name="icon"]:checked');
+    var previewIcon = document.getElementById('previewIcon');
+    var tags = collectLines(document.getElementById('tagsInput').value);
+    var subtasks = collectLines(document.getElementById('subtasksInput').value);
+
+    document.getElementById('previewName').textContent = name;
+    document.getElementById('previewDescription').textContent = description;
+    document.getElementById('previewProject').textContent = project;
+    document.getElementById('previewDate').textContent = formatDate(dueDate);
+    document.getElementById('previewTime').textContent = dueTime;
+    document.getElementById('previewPriority').textContent = priorityLabel;
+    document.getElementById('previewRecurrence').textContent = recurrence;
+    document.getElementById('previewColorLabel').textContent = color ? color.value : '-';
+    document.getElementById('previewEnergy').textContent = energy;
+    document.getElementById('previewType').textContent = selectedTaskType() === 'timer' ? 'Com tempo' : 'Check';
+
+    if (emoji) {
+      previewIcon.innerHTML = '<span class="preview-emoji">' + emoji + '</span>';
+    } else if (icon) {
+      previewIcon.innerHTML = '<span class="material-icons-round">' + icon.value + '</span>';
+    }
+    previewIcon.style.background = (color ? color.value : '#4A9EFF') + '22';
+    previewIcon.style.color = color ? color.value : '#4A9EFF';
+
+    var previewCard = document.getElementById('taskPreviewCard');
+    var isOverdue = false;
+    if (dueDate) {
+      var compareDate = new Date(dueDate + 'T' + (dueTime && dueTime !== '-' ? dueTime : '23:59'));
+      isOverdue = compareDate.getTime() < Date.now();
+    }
+    previewCard.classList.toggle('is-overdue', isOverdue);
+
+    var tagsHost = document.getElementById('previewTags');
+    tagsHost.innerHTML = tags.length ? tags.map(function (tag) {
+      return '<span class="preview-chip">' + tag + '</span>';
+    }).join('') : '<span class="preview-empty">Sem tags</span>';
+
+    var subtasksHost = document.getElementById('previewSubtasks');
+    subtasksHost.innerHTML = subtasks.length ? subtasks.map(function (item) {
+      return '<div class="preview-check-item"><span class="material-icons-round">check_box_outline_blank</span><span>' + item + '</span></div>';
+    }).join('') : '<span class="preview-empty">Sem subtarefas</span>';
+
+    var required = [
+      document.getElementById('taskNameInput').value.trim(),
+      selectedTaskType(),
+      priorityInput ? priorityInput.value : '',
+      selectedTaskType() === 'check' ? 'ok' : (
+        Array.from(document.querySelectorAll('input[name="duration_preset"]')).some(function (item) { return item.checked; }) ||
+        Number(form.querySelector('input[name="duration_hours"]').value || 0) > 0 ||
+        Number(form.querySelector('input[name="duration_minutes_extra"]').value || 0) > 0
+      ) ? 'ok' : '',
+      recurrenceInput.value
+    ];
+    var done = required.filter(Boolean).length;
+    var pct = Math.round((done / required.length) * 100);
+    completionFill.style.width = pct + '%';
+    completionText.textContent = pct + '%';
+
+    var reviewItems = [
+      ['Nome', name],
+      ['Tipo', document.getElementById('previewType').textContent],
+      ['Prioridade', priorityLabel],
+      ['Projeto', project],
+      ['Data', formatDate(dueDate)],
+      ['Horario', dueTime],
+      ['Recorrencia', recurrence],
+      ['Energia', energy],
+      ['Tags', tags.join(', ') || '-'],
+      ['Subtarefas', subtasks.join(', ') || '-']
+    ];
+    document.getElementById('reviewGrid').innerHTML = reviewItems.map(function (item) {
+      return '<div class="review-item"><span>' + item[0] + '</span><strong>' + item[1] + '</strong></div>';
+    }).join('');
+  }
+
+  form.querySelectorAll('input, textarea, select').forEach(function (field) {
+    field.addEventListener('input', updatePreview);
+    field.addEventListener('change', updatePreview);
   });
 
   syncTaskType();
+  syncRecurrence();
+  updatePreview();
+  showStep(1);
 });
 </script>
 {% endblock %}

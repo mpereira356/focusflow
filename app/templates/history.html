@@ -35,10 +35,27 @@
       {% set t = sd.task %}
       <div class="history-session-item">
         <div class="hsi-icon" style="color: {{ t.color }}">
+          {% if t.custom_icon_image %}
+          <img src="{{ t.custom_icon_image }}" alt="" class="task-custom-icon">
+          {% elif t.icon_emoji %}
+          <span class="task-emoji">{{ t.icon_emoji }}</span>
+          {% else %}
           <span class="material-icons-round">{{ t.icon }}</span>
+          {% endif %}
         </div>
         <div class="hsi-body">
           <span class="hsi-name">{{ t.name }}</span>
+          <div class="history-meta-row">
+            <span class="priority-badge" style="background: {{ t.priority_meta.color }}22; color: {{ t.priority_meta.color }}">
+              <span class="material-icons-round">{{ t.priority_meta.icon }}</span>{{ t.priority_meta.label }}
+            </span>
+            {% if t.due_at %}
+            <span class="due-badge {% if t.is_overdue %}overdue{% else %}upcoming{% endif %}">
+              <span class="material-icons-round">{% if t.is_overdue %}warning{% else %}event{% endif %}</span>
+              {% if t.is_overdue %}Atrasada{% else %}{{ t.due_at.strftime('%d/%m %H:%M') if t.due_time else t.due_at.strftime('%d/%m/%Y') }}{% endif %}
+            </span>
+            {% endif %}
+          </div>
           <div class="hsi-progress">
             <div class="linear-progress sm">
               <div class="linear-fill" style="width: {{ sd.progress }}%; background: {{ t.color }}"></div>

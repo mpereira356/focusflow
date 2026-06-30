@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, date
 from flask_login import UserMixin
 from app import db, login_manager
@@ -33,8 +34,27 @@ class Task(db.Model):
     duration_minutes = db.Column(db.Integer, nullable=False, default=25)
     task_type = db.Column(db.String(20), nullable=False, default='timer')
     is_recurring = db.Column(db.Boolean, default=True)
+    recurrence_type = db.Column(db.String(30), nullable=False, default='daily')
+    recurrence_interval = db.Column(db.Integer, nullable=False, default=1)
+    recurrence_days = db.Column(db.String(50), nullable=True)
+    recurrence_end_date = db.Column(db.Date, nullable=True)
+    priority = db.Column(db.String(20), nullable=False, default='medium')
+    due_at = db.Column(db.DateTime, nullable=True)
+    reminder_offset_minutes = db.Column(db.Integer, nullable=True)
+    project_name = db.Column(db.String(120), nullable=True)
+    tags_json = db.Column(db.Text, nullable=False, default='[]')
+    subtasks_json = db.Column(db.Text, nullable=False, default='[]')
+    attachments_json = db.Column(db.Text, nullable=False, default='[]')
+    useful_links_json = db.Column(db.Text, nullable=False, default='[]')
+    effort_level = db.Column(db.Integer, nullable=True)
+    energy_level = db.Column(db.Integer, nullable=True)
+    location = db.Column(db.String(120), nullable=True)
+    is_draft = db.Column(db.Boolean, nullable=False, default=False)
+    icon_emoji = db.Column(db.String(16), nullable=True)
+    custom_icon_image = db.Column(db.String(255), nullable=True)
     color = db.Column(db.String(7), default='#4A9EFF')
     icon = db.Column(db.String(50), default='timer')
+    display_order = db.Column(db.Integer, nullable=False, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
@@ -67,6 +87,122 @@ class Task(db.Model):
             db.session.add(session)
             db.session.commit()
         return session
+
+    @staticmethod
+    def _load_json_list(raw_value):
+        if not raw_value:
+            return []
+        try:
+            parsed = json.loads(raw_value)
+        except (TypeError, ValueError):
+            return []
+        return parsed if isinstance(parsed, list) else []
+
+    @property
+    def tags_list(self):
+        return [str(item).strip() for item in self._load_json_list(self.tags_json) if str(item).strip()]
+
+    @property
+    def useful_links(self):
+        return [str(item).strip() for item in self._load_json_list(self.useful_links_json) if str(item).strip()]
+
+    @property
+    def subtasks(self):
+        items = []
+        for item in self._load_json_list(self.subtasks_json):
+            if isinstance(item, dict):
+                title = str(item.get('title', '')).strip()
+                if title:
+                    items.append({'title': title, 'done': bool(item.get('done'))})
+            else:
+                title = str(item).strip()
+                if title:
+                    items.append({'title': title, 'done': False})
+        return items
+
+    @property
+    def attachments(self):
+        items = []
+        for item in self._load_json_list(self.attachments_json):
+            if isinstance(item, dict) and item.get('name') and item.get('url'):
+                items.append(item)
+        return items
+
+    @property
+    def due_date(self):
+        return self.due_at.date() if self.due_at else None
+
+    @property
+    def due_time(self):
+        return self.due_at.strftime('%H:%M') if self.due_at else ''
+
+    @property
+    def is_overdue(self):
+        return bool(self.due_at and self.due_at < datetime.utcnow())
+
+    @property
+    def is_due_today(self):
+        return bool(self.due_at and self.due_at.date() == date.today())
+
+    @property
+    def priority_meta(self):
+        palette = {
+            'low': {'label': 'Baixa', 'color': '#10B981', 'icon': 'flag'},
+            'medium': {'label': 'Media', 'color': '#F59E0B', 'icon': 'flag'},
+            'high': {'label': 'Alta', 'color': '#FB923C', 'icon': 'flag'},
+            'urgent': {'label': 'Urgente', 'color': '#EF4444', 'icon': 'flag'},
+        }
+        return palette.get(self.priority or 'medium', palette['medium'])
+
+    @property
+    def effort_label(self):
+        labels = {
+            1: 'Muito facil',
+            2: 'Facil',
+            3: 'Medio',
+            4: 'Dificil',
+            5: 'Muito dificil',
+        }
+        return labels.get(self.effort_level)
+
+    @property
+    def energy_label(self):
+        labels = {
+            1: 'Baixa',
+            2: 'Media',
+            3: 'Alta',
+        }
+        return labels.get(self.energy_level)
+
+    @property
+    def recurrence_summary(self):
+        weekday_labels = {
+            'mon': 'Seg',
+            'tue': 'Ter',
+            'wed': 'Qua',
+            'thu': 'Qui',
+            'fri': 'Sex',
+            'sat': 'Sab',
+            'sun': 'Dom',
+        }
+        if self.recurrence_type == 'none':
+            return 'Nao repetir'
+        if self.recurrence_type == 'daily':
+            return 'Diariamente'
+        if self.recurrence_type == 'weekdays':
+            return 'Seg a Sex'
+        if self.recurrence_type == 'weekly':
+            return 'Semanalmente'
+        if self.recurrence_type == 'monthly':
+            return 'Mensalmente'
+        if self.recurrence_type == 'yearly':
+            return 'Anualmente'
+        if self.recurrence_type == 'custom':
+            days = [weekday_labels.get(day, day) for day in (self.recurrence_days or '').split(',') if day]
+            if days:
+                return 'A cada %s semana(s) - %s' % (self.recurrence_interval or 1, ', '.join(days))
+            return 'A cada %s dia(s)' % (self.recurrence_interval or 1)
+        return 'Diariamente' if self.is_recurring else 'Nao repetir'
 
     def __repr__(self):
         return f'<Task {self.name}>'

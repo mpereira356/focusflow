@@ -20,7 +20,12 @@ def dashboard():
     today = date.today()
     
     # Get all active tasks
-    tasks = Task.query.filter_by(user_id=current_user.id, is_active=True).all()
+    tasks = (
+        Task.query
+        .filter_by(user_id=current_user.id, is_active=True, is_draft=False)
+        .order_by(Task.display_order.asc(), Task.created_at.desc(), Task.id.desc())
+        .all()
+    )
     
     # Build task cards with today's sessions
     task_data = []
@@ -58,7 +63,7 @@ def dashboard():
         d = today - timedelta(days=i)
         sessions = (TaskSession.query
                     .join(Task)
-                    .filter(Task.user_id == current_user.id, TaskSession.date == d)
+                    .filter(Task.user_id == current_user.id, Task.is_draft == False, TaskSession.date == d)
                     .all())
         total_sec = sum(s.time_completed for s in sessions)
         completed = sum(1 for s in sessions if s.status == 'completed')
@@ -93,7 +98,7 @@ def history():
         d = today - timedelta(days=i)
         sessions = (TaskSession.query
                     .join(Task)
-                    .filter(Task.user_id == current_user.id, TaskSession.date == d)
+                    .filter(Task.user_id == current_user.id, Task.is_draft == False, TaskSession.date == d)
                     .all())
         if sessions or i == 0:
             day_sessions = []
