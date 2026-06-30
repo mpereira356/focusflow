@@ -34,10 +34,17 @@ function initSortableTaskGrids() {
   grids.forEach(function(grid) {
     var selector = '.task-card[data-task-id], .task-list-card[data-task-id]';
     var draggingCard = null;
-    var dragEnabled = false;
+    var armedCard = null;
+    var startOrder = '';
 
     function getCards() {
       return Array.from(grid.querySelectorAll(selector));
+    }
+
+    function getOrderSignature() {
+      return getCards().map(function(card) {
+        return card.dataset.taskId;
+      }).join(',');
     }
 
     function persistOrder() {
@@ -64,10 +71,11 @@ function initSortableTaskGrids() {
       card.setAttribute('draggable', 'true');
 
       card.addEventListener('dragstart', function(event) {
-        if (!dragEnabled) {
+        if (armedCard !== card) {
           event.preventDefault();
           return;
         }
+        startOrder = getOrderSignature();
         draggingCard = card;
         card.classList.add('dragging');
         event.dataTransfer.effectAllowed = 'move';
@@ -75,10 +83,15 @@ function initSortableTaskGrids() {
       });
 
       card.addEventListener('dragend', function() {
-        draggingCard = null;
-        dragEnabled = false;
+        var endOrder = getOrderSignature();
         card.classList.remove('dragging');
         getCards().forEach(function(item) { item.classList.remove('drag-over'); });
+        draggingCard = null;
+        armedCard = null;
+        if (startOrder && startOrder !== endOrder) {
+          persistOrder();
+        }
+        startOrder = '';
       });
 
       card.addEventListener('dragover', function(event) {
@@ -105,17 +118,20 @@ function initSortableTaskGrids() {
       });
     });
 
-    grid.addEventListener('pointerdown', function(event) {
-      dragEnabled = !!event.target.closest('.drag-handle');
+    grid.addEventListener('mousedown', function(event) {
+      var handle = event.target.closest('.drag-handle');
+      armedCard = handle ? handle.closest(selector) : null;
     });
 
-    grid.addEventListener('pointerup', function() {
-      dragEnabled = false;
+    grid.addEventListener('mouseup', function() {
+      if (!draggingCard) {
+        armedCard = null;
+      }
     });
 
-    grid.addEventListener('dragend', function() {
-      if (draggingCard === null) {
-        persistOrder();
+    grid.addEventListener('mouseleave', function() {
+      if (!draggingCard) {
+        armedCard = null;
       }
     });
   });
