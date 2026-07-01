@@ -203,7 +203,16 @@ def list_tasks():
     task_data = []
     for task in tasks:
         task_data.append(_build_task_payload(task, task.get_or_create_today_session()))
-    return render_template('tasks/list.html', task_data=task_data, drafts=drafts, **_task_form_context())
+    pending_task_data = [td for td in task_data if td['session'].status != 'completed']
+    completed_task_data = [td for td in task_data if td['session'].status == 'completed']
+    return render_template(
+        'tasks/list.html',
+        task_data=task_data,
+        pending_task_data=pending_task_data,
+        completed_task_data=completed_task_data,
+        drafts=drafts,
+        **_task_form_context()
+    )
 
 
 @tasks_bp.route('/create', methods=['GET', 'POST'])

@@ -53,6 +53,9 @@ def dashboard():
             'remaining_seconds': max(0, duration_seconds - session.time_completed),
         })
 
+    pending_task_data = [td for td in task_data if td['session'].status != 'completed']
+    completed_task_data = [td for td in task_data if td['session'].status == 'completed']
+
     # Overall daily progress
     total_seconds_goal = total_minutes_goal * 60
     daily_progress = min(100, int((total_seconds_done / total_seconds_goal) * 100)) if total_seconds_goal > 0 else 0
@@ -77,6 +80,8 @@ def dashboard():
 
     return render_template('dashboard.html',
         task_data=task_data,
+        pending_task_data=pending_task_data,
+        completed_task_data=completed_task_data,
         daily_progress=daily_progress,
         total_minutes_goal=total_minutes_goal,
         total_seconds_done=total_seconds_done,

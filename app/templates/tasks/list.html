@@ -59,8 +59,9 @@
   </a>
 </div>
 {% else %}
+{% if pending_task_data %}
 <div class="task-list-grid sortable-task-grid" data-reorder-url="{{ url_for('tasks.reorder_tasks') }}">
-  {% for td in task_data %}
+  {% for td in pending_task_data %}
   {% set task = td.task %}
   {% set session = td.session %}
   <div class="task-list-card {% if session.status == 'completed' %}completed{% endif %}" data-task-id="{{ task.id }}">
@@ -153,5 +154,57 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
+
+{% if completed_task_data %}
+<div class="section-header completed-section-header">
+  <h2 class="section-title">Concluidos</h2>
+</div>
+<div class="task-list-grid">
+  {% for td in completed_task_data %}
+  {% set task = td.task %}
+  {% set session = td.session %}
+  <div class="task-list-card completed">
+    <div class="tlc-color-bar" style="background: {{ task.color }}"></div>
+    <div class="tlc-icon" style="color: {{ task.color }}">
+      {% if task.custom_icon_image %}
+      <img src="{{ task.custom_icon_image }}" alt="" class="task-custom-icon">
+      {% elif task.icon_emoji %}
+      <span class="task-emoji">{{ task.icon_emoji }}</span>
+      {% else %}
+      <span class="material-icons-round">{{ task.icon }}</span>
+      {% endif %}
+    </div>
+    <div class="tlc-body">
+      <div class="tlc-top">
+        <h4>{{ task.name }}</h4>
+        <div class="tlc-badges">
+          <span class="badge badge-done"><span class="material-icons-round">check</span> Concluida</span>
+        </div>
+      </div>
+      {% if task.description %}
+      <p class="tlc-desc">{{ task.description }}</p>
+      {% endif %}
+      <div class="tlc-stats">
+        <span><span class="material-icons-round">task_alt</span> Finalizada hoje</span>
+      </div>
+    </div>
+    <div class="tlc-actions">
+      {% if task.is_check_task %}
+      <form method="POST" action="{{ url_for('tasks.toggle_check_task', task_id=task.id) }}">
+        <input type="hidden" name="done" value="0">
+        <button type="submit" class="icon-btn success" title="Desfazer">
+          <span class="material-icons-round">undo</span>
+        </button>
+      </form>
+      {% endif %}
+      <a href="{{ url_for('tasks.edit_task', task_id=task.id) }}" class="icon-btn" title="Editar">
+        <span class="material-icons-round">edit</span>
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}

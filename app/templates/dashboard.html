@@ -67,8 +67,9 @@
   </a>
 </div>
 {% else %}
+{% if pending_task_data %}
 <div class="task-grid sortable-task-grid" id="taskGrid" data-reorder-url="{{ url_for('tasks.reorder_tasks') }}">
-  {% for td in task_data %}
+  {% for td in pending_task_data %}
   {% set task = td.task %}
   {% set session = td.session %}
   {% set dur_sec = td.duration_seconds %}
@@ -234,6 +235,85 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
+
+{% if completed_task_data %}
+<div class="section-header completed-section-header">
+  <h2 class="section-title">Concluidos</h2>
+</div>
+<div class="task-grid completed-task-grid">
+  {% for td in completed_task_data %}
+  {% set task = td.task %}
+  {% set session = td.session %}
+  {% set dur_sec = td.duration_seconds %}
+  <div class="task-card completed"
+       id="card-completed-{{ task.id }}">
+
+    <div class="task-card-header">
+      <div class="task-icon-wrap" style="background: {{ task.color }}22; color: {{ task.color }}">
+        {% if task.custom_icon_image %}
+        <img src="{{ task.custom_icon_image }}" alt="" class="task-custom-icon">
+        {% elif task.icon_emoji %}
+        <span class="task-emoji">{{ task.icon_emoji }}</span>
+        {% else %}
+        <span class="material-icons-round">{{ task.icon }}</span>
+        {% endif %}
+      </div>
+      <div class="task-meta">
+        <h4 class="task-name">{{ task.name }}</h4>
+        {% if task.description %}
+        <p class="task-desc">{{ task.description[:60] }}{% if task.description|length > 60 %}...{% endif %}</p>
+        {% endif %}
+      </div>
+      <div class="task-badges">
+        <span class="badge badge-done">
+          <span class="material-icons-round">check</span> Concluida
+        </span>
+      </div>
+    </div>
+
+    {% if task.is_check_task %}
+    <div class="check-display">
+      <div class="check-display-icon" style="background: {{ task.color }}18; color: {{ task.color }}">
+        <span class="material-icons-round">task_alt</span>
+      </div>
+      <div class="check-display-copy">
+        <span class="check-title">Resolvida hoje</span>
+        <span class="check-help">Esta tarefa foi movida para a area de concluidos.</span>
+      </div>
+    </div>
+    <div class="timer-controls">
+      <form method="POST" action="{{ url_for('tasks.toggle_check_task', task_id=task.id) }}">
+        <input type="hidden" name="done" value="0">
+        <button type="submit" class="ctrl-btn ctrl-check">
+          <span class="material-icons-round">undo</span>
+          <span>Desfazer</span>
+        </button>
+      </form>
+    </div>
+    {% else %}
+    <div class="timer-display">
+      <div class="timer-ring-wrap">
+        <svg class="timer-ring" viewBox="0 0 100 100">
+          <circle class="ring-bg" cx="50" cy="50" r="42"/>
+          <circle class="ring-progress" cx="50" cy="50" r="42"
+                  style="stroke: {{ task.color }}; stroke-dashoffset: 0"/>
+        </svg>
+        <div class="timer-time">00:00</div>
+      </div>
+      <div class="timer-info">
+        <span class="timer-total">{{ task.duration_minutes }} min / dia</span>
+        <div class="linear-progress">
+          <div class="linear-fill" style="width: 100%; background: {{ task.color }}"></div>
+        </div>
+        <span class="timer-pct">100%</span>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
 {% endif %}
 
 <div class="toast" id="toast">
